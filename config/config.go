@@ -15,7 +15,7 @@ var (
 	Client     *mongo.Client
 	Database   *mongo.Database
 	Collection *mongo.Collection
-	GeminiAPIKey string
+	GeminiFlashAPIKey string
 )
 
 func LoadEnv() {
@@ -23,9 +23,9 @@ func LoadEnv() {
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
-	GeminiAPIKey = os.Getenv("GEMINI_API_KEY")
-	if GeminiAPIKey == "" {
-		log.Fatal("GEMINI_API_KEY not set in .env")
+	GeminiFlashAPIKey = os.Getenv("GEMINI_FLASH_API_KEY")
+	if GeminiFlashAPIKey == "" {
+		log.Fatal("GEMINI_FLASH_API_KEY not set in .env")
 	}
 }
 
