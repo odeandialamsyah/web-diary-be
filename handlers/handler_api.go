@@ -34,7 +34,7 @@ func CreateDiaryEntry(c *fiber.Ctx) error {
 		})
 	}
 
-	// Panggil Gemini API untuk menganalisis emosi
+	// Panggil Gemini Flash API untuk menganalisis emosi
 	emotion, sentiment, err := services.AnalyzeEmotion(entry.Content)
 	if err != nil {
 		log.Printf("Failed to analyze emotion: %v", err)
