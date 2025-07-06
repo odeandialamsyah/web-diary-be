@@ -33,7 +33,7 @@ func main() {
 
 
 	// Jalankan server
-	port := ":3000" // Atau dari environment variable
+	port := ":8080"
 	log.Printf("Server is running on port %s", port)
 	log.Fatal(app.Listen(port))
 }
