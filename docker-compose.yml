@@ -4,11 +4,11 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      - db
+      - mongo
     env_file:
       - .env
 
-  db:
+  mongo:
     image:  mongo:4.4
     restart: always
     ports:
