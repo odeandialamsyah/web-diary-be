@@ -68,16 +68,14 @@ func AnalyzeEmotion(text string) (string, string, error) {
 
 	// Bersihkan result dari backtick dan blok markdown jika ada
 	cleanResult := result
-	if strings.HasPrefix(cleanResult, "```json") {
-		cleanResult = strings.TrimPrefix(cleanResult, "```json")
+	if after, ok :=strings.CutPrefix(cleanResult, "```json"); ok  {
+		cleanResult = after
 	}
-	if strings.HasPrefix(cleanResult, "```") {
-		cleanResult = strings.TrimPrefix(cleanResult, "```")
+	if after, ok :=strings.CutPrefix(cleanResult, "```"); ok  {
+		cleanResult = after
 	}
 	cleanResult = strings.TrimSpace(cleanResult)
-	if strings.HasSuffix(cleanResult, "```") {
-		cleanResult = strings.TrimSuffix(cleanResult, "```")
-	}
+	cleanResult = strings.TrimSuffix(cleanResult, "```")
 
 	err = json.Unmarshal([]byte(cleanResult), &analysis)
 	if err != nil {
