@@ -12,10 +12,11 @@ import (
 )
 
 var (
-	Client     *mongo.Client
-	Database   *mongo.Database
-	Collection *mongo.Collection
-	GeminiFlashAPIKey string
+	Client             *mongo.Client
+	Database           *mongo.Database
+	DiaryCollection    *mongo.Collection
+	UserCollection     *mongo.Collection
+	GeminiFlashAPIKey  string
 )
 
 func LoadEnv() {
@@ -23,6 +24,7 @@ func LoadEnv() {
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
+
 	GeminiFlashAPIKey = os.Getenv("GEMINI_FLASH_API_KEY")
 	if GeminiFlashAPIKey == "" {
 		log.Fatal("GEMINI_FLASH_API_KEY not set in .env")
@@ -33,6 +35,11 @@ func ConnectDB() {
 	mongoURI := os.Getenv("MONGO_URI")
 	if mongoURI == "" {
 		log.Fatal("MONGO_URI not set in .env")
+	}
+
+	dbName := os.Getenv("MONGO_DB_NAME")
+	if dbName == "" {
+		log.Fatal("MONGO_DB_NAME not set in .env")
 	}
 
 	clientOptions := options.Client().ApplyURI(mongoURI)
@@ -49,10 +56,12 @@ func ConnectDB() {
 		log.Fatal(err)
 	}
 
-	log.Println("Connected to MongoDB!")
+	log.Println("✅ Connected to MongoDB!")
 	Client = client
-	Database = client.Database(os.Getenv("MONGO_DB_NAME")) // Pastikan ini juga ada di .env
-	Collection = Database.Collection("diary_entries")      // Nama koleksi
+	Database = client.Database(dbName)
+
+	DiaryCollection = Database.Collection("diary_entries")
+	UserCollection = Database.Collection("users")
 }
 
 func DisconnectDB() {
@@ -63,5 +72,5 @@ func DisconnectDB() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Println("Disconnected from MongoDB.")
+	log.Println("🔌 Disconnected from MongoDB.")
 }

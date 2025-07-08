@@ -7,7 +7,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/cors" // Untuk menangani CORS
 
 	"web-diary-be/config"
-	"web-diary-be/handlers"
+	"web-diary-be/routes"
 )
 
 func main() {
@@ -23,13 +23,10 @@ func main() {
 	// Middleware CORS agar frontend bisa mengakses API ini
 	app.Use(cors.New(cors.Config{
 		AllowOrigins: "*", // Ganti dengan domain frontend Anda di produksi
-		AllowHeaders: "Origin, Content-Type, Accept",
+		AllowHeaders: "Origin, Content-Type, Accept,  Authorization",
 	}))
-
-	// Routes
-	app.Post("/api/diary-entries", handlers.CreateDiaryEntry)
-	app.Get("/api/diary-entries", handlers.GetDiaryEntries)
-	app.Get("/api/diary-entries/:id", handlers.GetDiaryEntryByID)
+	routes.AuthRoutes(app) // Rute untuk otentikasi
+	routes.DiaryRoutes(app)
 
 
 	// Jalankan server

@@ -12,7 +12,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"web-diary-be/config"
-	models "web-diary-be/model"
+	models "web-diary-be/models"
 	"web-diary-be/services"
 )
 
@@ -27,18 +27,33 @@ func CreateDiaryEntry(c *fiber.Ctx) error {
 		})
 	}
 
-	// Validasi input minimal
 	if entry.Content == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": "Diary content cannot be empty",
 		})
 	}
 
-	// Panggil Gemini Flash API untuk menganalisis emosi
+	// Dapatkan user ID dari token
+	val := c.Locals("user_id")
+	userID, ok := val.(string)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "invalid or missing token",
+		})
+	}
+	userObjID, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Invalid user ID format",
+			"error":   err.Error(),
+		})
+	}
+	entry.UserID = userObjID
+
+	// Analisis emosi
 	emotion, sentiment, err := services.AnalyzeEmotion(entry.Content)
 	if err != nil {
 		log.Printf("Failed to analyze emotion: %v", err)
-		// Tetap simpan entri meskipun analisis gagal, mungkin dengan emosi default
 		entry.Emotion = "Unknown"
 		entry.Sentiment = "Neutral"
 	} else {
@@ -49,7 +64,7 @@ func CreateDiaryEntry(c *fiber.Ctx) error {
 	entry.ID = primitive.NewObjectID()
 	entry.CreatedAt = time.Now()
 
-	_, err = config.Collection.InsertOne(context.Background(), entry)
+	_, err = config.DiaryCollection.InsertOne(context.Background(), entry)
 	if err != nil {
 		log.Printf("Error inserting diary entry: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -61,12 +76,35 @@ func CreateDiaryEntry(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(entry)
 }
 
-// GetDiaryEntries mengambil semua entri diary
 func GetDiaryEntries(c *fiber.Ctx) error {
-	var entries []models.DiaryEntry
-	findOptions := options.Find().SetSort(bson.D{{Key: "created_at", Value: -1}}) // Urutkan dari terbaru
+	// Ambil user_id dari JWT (disimpan oleh middleware di Locals)
+	val := c.Locals("user_id")
+	userID, ok := val.(string)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Invalid or missing token",
+		})
+	}
 
-	cursor, err := config.Collection.Find(context.Background(), bson.M{}, findOptions)
+	// Konversi string ke ObjectID
+	objID, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		log.Println("❌ Invalid user_id format:", userID)
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid user ID format",
+		})
+	}
+
+	// // Log debug (opsional)
+	// log.Println("✅ user_id (string):", userID)
+	// log.Println("✅ user_id (ObjectID):", objID)
+
+	// Persiapkan query dan sorting
+	filter := bson.M{"user_id": objID}
+	findOptions := options.Find().SetSort(bson.D{{Key: "created_at", Value: -1}})
+
+	// Query ke database
+	cursor, err := config.DiaryCollection.Find(context.Background(), filter, findOptions)
 	if err != nil {
 		log.Printf("Error finding diary entries: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -76,25 +114,41 @@ func GetDiaryEntries(c *fiber.Ctx) error {
 	}
 	defer cursor.Close(context.Background())
 
+	// Iterasi hasil
+	var entries []models.DiaryEntry
 	for cursor.Next(context.Background()) {
 		var entry models.DiaryEntry
-		cursor.Decode(&entry)
+		if err := cursor.Decode(&entry); err != nil {
+			log.Printf("Error decoding diary entry: %v", err)
+			continue
+		}
 		entries = append(entries, entry)
 	}
 
+	// Cek jika ada error di cursor
 	if err := cursor.Err(); err != nil {
-		log.Printf("Error iterating cursor: %v", err)
+		log.Printf("Cursor error: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"message": "Error processing diary entries",
+			"message": "Error while processing diary entries",
 			"error":   err.Error(),
 		})
 	}
 
+	// Kembalikan hasil
 	return c.Status(fiber.StatusOK).JSON(entries)
 }
 
+
 // GetDiaryEntryByID mengambil satu entri diary berdasarkan ID
 func GetDiaryEntryByID(c *fiber.Ctx) error {
+	val := c.Locals("user_id")
+	userID, ok := val.(string)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "invalid or missing token",
+		})
+	}
+
 	idParam := c.Params("id")
 	objID, err := primitive.ObjectIDFromHex(idParam)
 	if err != nil {
@@ -104,11 +158,12 @@ func GetDiaryEntryByID(c *fiber.Ctx) error {
 	}
 
 	var entry models.DiaryEntry
-	err = config.Collection.FindOne(context.Background(), bson.M{"_id": objID}).Decode(&entry)
+	filter := bson.M{"_id": objID, "user_id": userID}
+	err = config.DiaryCollection.FindOne(context.Background(), filter).Decode(&entry)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"message": "Diary entry not found",
+				"message": "Diary entry not found or not authorized",
 			})
 		}
 		log.Printf("Error finding diary entry by ID: %v", err)
