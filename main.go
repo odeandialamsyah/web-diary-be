@@ -22,8 +22,12 @@ func main() {
 
 	// Middleware CORS agar frontend bisa mengakses API ini
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: "*", // Ganti dengan domain frontend Anda di produksi
-		AllowHeaders: "Origin, Content-Type, Accept,  Authorization",
+		AllowOrigins:     "http://localhost:60225",
+		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",
+		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
+		ExposeHeaders:    "Content-Length, Access-Control-Allow-Origin",
+		AllowCredentials: false, // set to true only if frontend sends cookies/credentials
+		MaxAge:           3600,
 	}))
 	routes.AuthRoutes(app) // Rute untuk otentikasi
 	routes.DiaryRoutes(app)
