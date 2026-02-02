@@ -20,16 +20,15 @@ var (
 )
 
 func LoadEnv() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
+	// Aman untuk local, aman untuk Railway
+	_ = godotenv.Load()
 
 	GeminiFlashAPIKey = os.Getenv("GEMINI_FLASH_API_KEY")
 	if GeminiFlashAPIKey == "" {
-		log.Fatal("GEMINI_FLASH_API_KEY not set in .env")
+		log.Fatal("GEMINI_FLASH_API_KEY not set")
 	}
 }
+
 
 func ConnectDB() {
 	mongoURI := os.Getenv("MONGO_URI")
