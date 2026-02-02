@@ -175,3 +175,116 @@ func GetDiaryEntryByID(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusOK).JSON(entry)
 }
+
+// UpdateDiaryEntry memperbarui entri diary milik user yang terautentikasi
+func UpdateDiaryEntry(c *fiber.Ctx) error {
+	val := c.Locals("user_id")
+	userID, ok := val.(string)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid or missing token"})
+	}
+
+	userObjID, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user id in token"})
+	}
+
+	idParam := c.Params("id")
+	objID, err := primitive.ObjectIDFromHex(idParam)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "Invalid ID format"})
+	}
+
+	// Parse update payload (allow partial updates)
+	var payload struct {
+		Title   *string `json:"title"`
+		Content *string `json:"content"`
+	}
+	if err := c.BodyParser(&payload); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body", "detail": err.Error()})
+	}
+
+	// Ensure the entry exists and belongs to the user
+	var existing models.DiaryEntry
+	filter := bson.M{"_id": objID, "user_id": userObjID}
+	if err := config.DiaryCollection.FindOne(context.Background(), filter).Decode(&existing); err != nil {
+		if err == mongo.ErrNoDocuments {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "Diary entry not found or not authorized"})
+		}
+		log.Printf("Error fetching existing diary entry: %v", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "Failed to fetch diary entry", "error": err.Error()})
+	}
+
+	updateDoc := bson.M{}
+	setFields := bson.M{}
+	if payload.Title != nil {
+		setFields["title"] = *payload.Title
+	}
+	if payload.Content != nil {
+		if *payload.Content == "" {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "Diary content cannot be empty"})
+		}
+		setFields["content"] = *payload.Content
+		// jika content berubah, lakukan analisis emosi ulang
+		if *payload.Content != existing.Content {
+			emotion, sentiment, err := services.AnalyzeEmotion(*payload.Content)
+			if err != nil {
+				log.Printf("AnalyzeEmotion failed on update: %v", err)
+				setFields["emotion"] = "Unknown"
+				setFields["sentiment"] = "Neutral"
+			} else {
+				setFields["emotion"] = emotion
+				setFields["sentiment"] = sentiment
+			}
+		}
+	}
+
+	if len(setFields) == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "No updatable fields provided"})
+	}
+
+	setFields["updated_at"] = time.Now()
+	updateDoc["$set"] = setFields
+
+	opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
+	var updated models.DiaryEntry
+	err = config.DiaryCollection.FindOneAndUpdate(context.Background(), filter, updateDoc, opts).Decode(&updated)
+	if err != nil {
+		log.Printf("Error updating diary entry: %v", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "Failed to update diary entry", "error": err.Error()})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(updated)
+}
+
+// DeleteDiaryEntry menghapus entri diary milik user yang terautentikasi
+func DeleteDiaryEntry(c *fiber.Ctx) error {
+	val := c.Locals("user_id")
+	userID, ok := val.(string)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid or missing token"})
+	}
+
+	userObjID, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user id in token"})
+	}
+
+	idParam := c.Params("id")
+	objID, err := primitive.ObjectIDFromHex(idParam)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "Invalid ID format"})
+	}
+
+	filter := bson.M{"_id": objID, "user_id": userObjID}
+	res, err := config.DiaryCollection.DeleteOne(context.Background(), filter)
+	if err != nil {
+		log.Printf("Error deleting diary entry: %v", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "Failed to delete diary entry", "error": err.Error()})
+	}
+	if res.DeletedCount == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "Diary entry not found or not authorized"})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "Diary entry deleted"})
+}

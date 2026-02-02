@@ -23,6 +23,7 @@ type DiaryEntry struct {
 	Content   string             `json:"content" bson:"content,omitempty"`
 	Emotion   string             `json:"emotion,omitempty" bson:"emotion,omitempty"`     // Contoh: "Joy", "Sadness", "Anger"
 	Sentiment string             `json:"sentiment,omitempty" bson:"sentiment,omitempty"` // Contoh: "Positive", "Negative", "Neutral"
-	CreatedAt time.Time          `json:"created_at,omitempty" bson:"created_at,omitempty"`
+	CreatedAt time.Time          `json:"created_at,omitempty" bson:"created_at,omitempty"`	
+	UpdatedAt time.Time          `json:"updated_at,omitempty" bson:"updated_at,omitempty"`
 }
 

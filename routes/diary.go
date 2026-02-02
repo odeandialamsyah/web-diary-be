@@ -21,5 +21,7 @@ func DiaryRoutes(app *fiber.App) {
 
 	diary.Post("/", handlers.CreateDiaryEntry)
 	diary.Get("/", handlers.GetDiaryEntries)
-	diary.Get("/:id", handlers.GetDiaryEntryByID)
+	diary.Get("/:id", handlers.GetDiaryEntryByID)	
+	diary.Put("/:id", handlers.UpdateDiaryEntry)
+	diary.Delete("/:id", handlers.DeleteDiaryEntry)
 }
