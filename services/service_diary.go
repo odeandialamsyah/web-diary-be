@@ -40,7 +40,18 @@ func AnalyzeEmotion(text string) (string, string, error) {
 
 	prompt := `Analyze the following text for its dominant emotion and overall sentiment (positive, negative, neutral).
 	Return the result in a JSON object with 'emotion' and 'sentiment' keys.
-	Example: {"emotion": "joy", "sentiment": "positive"}
+		
+	For emotion field, ONLY return one of these Indonesian emotions:
+	- "senang" (for happy, joy, excited)
+	- "sedih" (for sad, crying, disappointed)
+	- "marah" (for angry, frustrated, annoyed)
+	- "takut" (for fear, scared, anxious)
+	- "mengantuk" (for tired, sleepy, exhausted)
+	- "berpikir" (for thinking, confused, wondering)
+	- "cinta" (for love, crush, affection)
+	- "percaya_diri" (for confident, cool, proud)
+	
+	Example: {"emotion": "senang", "sentiment": "positive"}
 	Text: "` + text + `"`
 
 	resp, err := model.GenerateContent(ctx, genai.Text(prompt))
