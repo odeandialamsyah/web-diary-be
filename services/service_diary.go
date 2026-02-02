@@ -30,7 +30,7 @@ func AnalyzeEmotion(text string) (string, string, error) {
 
 	// --- PASTIKAN NAMA MODEL DI SINI SESUAI DENGAN YANG ANDA MAKSUD ---
 	// Jika Anda ingin menggunakan Gemini Flash 1.5 Pro:
-	model := client.GenerativeModel("gemini-1.5-pro")
+	model := client.GenerativeModel("gemini-2.5-pro")
 	// Atau jika Anda ingin versi spesifik tanpa "latest"
 	// model := client.GenerativeModel("gemini-flash-1.5-pro")
 
