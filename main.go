@@ -22,7 +22,7 @@ func main() {
 
 	// Middleware CORS agar frontend bisa mengakses API ini
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     "http://localhost:60225",
+		AllowOrigins:     "http://localhost:49268",
 		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",
 		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
 		ExposeHeaders:    "Content-Length, Access-Control-Allow-Origin",
