@@ -25,3 +25,13 @@ func DiaryRoutes(app *fiber.App) {
 	diary.Put("/:id", handlers.UpdateDiaryEntry)
 	diary.Delete("/:id", handlers.DeleteDiaryEntry)
 }
+
+func ProfileRoutes(app *fibe.App) {
+	profile := app.Group("/api/profile")
+
+	profile.Use(middleware.JWTProtected())
+
+	profile.Get("/me", handlers.Me)
+	profile.Put("/:id", handlers.UpdateProfile)
+	profile.Delete("/:id", handlers.DeleteProfile)
+}

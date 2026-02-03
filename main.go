@@ -31,6 +31,7 @@ func main() {
 	}))
 	routes.AuthRoutes(app) // Rute untuk otentikasi
 	routes.DiaryRoutes(app)
+	routes.ProfileRoutes(app)
 
 
 	// Jalankan server

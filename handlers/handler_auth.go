@@ -65,3 +65,58 @@ func Login(c *fiber.Ctx) error {
 func Logout(c *fiber.Ctx) error {
     return c.JSON(fiber.Map{"message": "Logout success (client should delete token)"})
 }
+
+// Me mengembalikan profil user yang sedang login
+func Me(c *fiber.Ctx) error {
+	val := c.Locals("user_id")
+	userID, ok := val.(string)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "invalid or missing token",
+		})
+	}
+
+	objID, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "invalid user id format",
+		})
+	}
+
+	var user models.User
+	err = config.UserCollection.
+		FindOne(context.Background(), bson.M{"_id": objID}).
+		Decode(&user)
+
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"message": "User not found",
+			})
+		}
+		log.Printf("Error fetching user profile: %v", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to fetch user profile",
+			"error":   err.Error(),
+		})
+	}
+
+	// Response tanpa password
+	type UserResponse struct {
+		ID        primitive.ObjectID `json:"id"`
+		Username  string             `json:"username"`
+		Email     string             `json:"email"`
+		CreatedAt time.Time          `json:"created_at"`
+		UpdatedAt time.Time          `json:"updated_at,omitempty"`
+	}
+
+	resp := UserResponse{
+		ID:        user.ID,
+		Username:  user.Username,
+		Email:     user.Email,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
+	}
+
+	return c.Status(fiber.StatusOK).JSON(resp)
+}
