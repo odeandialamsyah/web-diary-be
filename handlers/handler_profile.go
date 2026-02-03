@@ -9,10 +9,10 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"golang.org/x/crypto/bcrypt"
 
 	"web-diary-be/config"
 	"web-diary-be/models"
-	"web-diary-be/services"
 )
 
 // UpdateMe memperbarui profil user yang sedang login
@@ -38,14 +38,14 @@ func UpdateProfile(c *fiber.Ctx) error {
 		Email    *string `json:"email"`
 		Password *string `json:"password"`
 	}
+
 	if err := c.BodyParser(&payload); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "invalid request body",
-			"detail": err.Error(),
 		})
 	}
 
-	setFields := bson.M{}
+	update := bson.M{}
 
 	if payload.Username != nil {
 		if *payload.Username == "" {
@@ -53,7 +53,7 @@ func UpdateProfile(c *fiber.Ctx) error {
 				"message": "username cannot be empty",
 			})
 		}
-		setFields["username"] = *payload.Username
+		update["username"] = *payload.Username
 	}
 
 	if payload.Email != nil {
@@ -62,7 +62,20 @@ func UpdateProfile(c *fiber.Ctx) error {
 				"message": "email cannot be empty",
 			})
 		}
-		setFields["email"] = *payload.Email
+
+		// optional: cek email unik
+		var existing models.User
+		err := config.UserCollection.FindOne(
+			context.Background(),
+			bson.M{"email": *payload.Email, "_id": bson.M{"$ne": objID}},
+		).Decode(&existing)
+		if err == nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"message": "email already in use",
+			})
+		}
+
+		update["email"] = *payload.Email
 	}
 
 	if payload.Password != nil {
@@ -71,51 +84,54 @@ func UpdateProfile(c *fiber.Ctx) error {
 				"message": "password must be at least 6 characters",
 			})
 		}
-		// ⚠️ pastikan ini di-hash
-		hashed, err := services.HashPassword(*payload.Password)
+
+		hashed, err := bcrypt.GenerateFromPassword([]byte(*payload.Password), 14)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"message": "failed to hash password",
 			})
 		}
-		setFields["password"] = hashed
+
+		update["password"] = string(hashed)
 	}
 
-	if len(setFields) == 0 {
+	if len(update) == 0 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": "no updatable fields provided",
 		})
 	}
 
-	setFields["updated_at"] = time.Now()
+	update["updated_at"] = time.Now()
 
 	opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
-	var updated models.User
+
+	var user models.User
 	err = config.UserCollection.
 		FindOneAndUpdate(
 			context.Background(),
 			bson.M{"_id": objID},
-			bson.M{"$set": setFields},
+			bson.M{"$set": update},
 			opts,
 		).
-		Decode(&updated)
+		Decode(&user)
 
 	if err != nil {
-		log.Printf("Error updating user: %v", err)
+		log.Printf("Error updating profile: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "failed to update profile",
 		})
 	}
 
-	// response tanpa password
+	// response konsisten dengan Me
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"id":         updated.ID,
-		"username":   updated.Username,
-		"email":      updated.Email,
-		"created_at": updated.CreatedAt,
-		"updated_at": updated.UpdatedAt,
+		"id":         user.ID,
+		"username":   user.Username,
+		"email":      user.Email,
+		"created_at": user.CreatedAt,
+		"updated_at": user.UpdatedAt,
 	})
 }
+
 
 // DeleteMe menghapus akun user yang sedang login
 func DeleteProfile(c *fiber.Ctx) error {

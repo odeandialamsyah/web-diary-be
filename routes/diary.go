@@ -26,7 +26,7 @@ func DiaryRoutes(app *fiber.App) {
 	diary.Delete("/:id", handlers.DeleteDiaryEntry)
 }
 
-func ProfileRoutes(app *fibe.App) {
+func ProfileRoutes(app *fiber.App) {
 	profile := app.Group("/api/profile")
 
 	profile.Use(middleware.JWTProtected())
